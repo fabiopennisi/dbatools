@@ -291,6 +291,15 @@ function Connect-DbaInstance {
         Note that the token is valid for only one hour and cannot be renewed automatically.
         This is only available in the new code path for handling connections (see example above).
 
+    .EXAMPLE
+        PS C:\> Set-DbatoolsConfig -FullName sql.connection.experimental -Value $true
+        PS C:\> Set-DbatoolsConfig -FullName sql.connection.resolve -Value $true
+        PS C:\> Set-DbatoolsConfig -FullName sql.connection.fullcomputername -Value $true
+        PS C:\> $sqlcred = Get-Credential sqladmin
+        PS C:\> $server = Connect-DbaInstance -SqlInstance sql2014 -SqlCredential $sqlcred
+        PS C:\> $server.ComputerName
+        PS C:\> $server.ResolvedNetworkName
+
     #>
     [CmdletBinding()]
     param (
@@ -869,9 +878,24 @@ function Connect-DbaInstance {
                     continue
                 }
 
+                $computerName = $instance.ComputerName
+                if (Get-DbatoolsConfigValue -FullName sql.connection.resolve) {
+                    try {
+                        # we try to resolve the ComputerName, but at the moment without -Credential as we don't have it
+                        $resolvedNetworkName = Resolve-DbaNetworkName -ComputerName $instance.ComputerName
+                        Write-Message -Level Debug -Message "Resolve-DbaNetworkName successful"
+                        Add-Member -InputObject $server -NotePropertyName ResolvedNetworkName -NotePropertyValue $resolvedNetworkName -Force
+                        if (Get-DbatoolsConfigValue -FullName sql.connection.fullcomputername) {
+                            $computerName = $resolvedNetworkName.FullComputerName
+                        }
+                    } catch {
+                        Write-Message -Level Debug -Message "Resolve-DbaNetworkName failed"
+                    }
+                }
+
                 if (-not $server.ComputerName) {
                     Add-Member -InputObject $server -NotePropertyName IsAzure -NotePropertyValue (Test-Azure -SqlInstance $instance) -Force
-                    Add-Member -InputObject $server -NotePropertyName ComputerName -NotePropertyValue $instance.ComputerName -Force
+                    Add-Member -InputObject $server -NotePropertyName ComputerName -NotePropertyValue $computerName -Force
                     Add-Member -InputObject $server -NotePropertyName DbaInstanceName -NotePropertyValue $instance.InstanceName -Force
                     Add-Member -InputObject $server -NotePropertyName NetPort -NotePropertyValue $instance.Port -Force
                     Add-Member -InputObject $server -NotePropertyName ConnectedAs -NotePropertyValue $server.ConnectionContext.TrueLogin -Force
