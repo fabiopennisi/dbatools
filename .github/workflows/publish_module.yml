@@ -1,0 +1,18 @@
+name: Publish module
+on:
+  push:
+    branches:
+      - releasetest
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'update version')"
+    steps:
+      - name: Repository Dispatch
+        uses: peter-evans/repository-dispatch@v1
+        with:
+          token: ${{ secrets.RELEASE_TOKEN }}
+          repository: potatoqualitee/releases
+          event-type: publish-dbatools
+          client-payload: ${{ toJson(github.sha) }}
