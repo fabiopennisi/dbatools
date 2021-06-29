@@ -6,6 +6,7 @@ function Get-DbaCmObject {
     .DESCRIPTION
         This function centralizes all requests for information retrieved from Get-WmiObject or Get-CimInstance.
         It uses different protocols as available in this order:
+        - Cim over WinRM - with SSL if PSRemoting.PsSession.UseSSL is set to true
         - Cim over WinRM
         - Cim over DCOM
         - Wmi
